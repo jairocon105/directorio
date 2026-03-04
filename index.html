@@ -155,7 +155,7 @@
     try {
       // Si ya lo conectaste a n8n, reemplaza esta URL por tu endpoint:
       // const resp = await fetch("https://TU-N8N/webhook/residentes", { cache: "no-store" });
-      const resp = await fetch("https://betterlifeall.app.n8n.cloud/webhook-test/residentes", { cache: "no-store" });
+      const resp = await fetch("https://betterlifeall.app.n8n.cloud/webhook/residentes", { cache: "no-store" });
       if (!resp.ok) throw new Error("No se pudo descargar residentes.json");
 
       const data = await resp.json();
