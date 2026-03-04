@@ -1,0 +1,23 @@
+{
+  "version": "2026-03-03T20:00:00-05:00",
+  "items": [
+    {
+      "id": "T4-1407",
+      "torre": "4",
+      "apto": "1407",
+      "nombre": "Jairo Contreras",
+      "telefono": "+573001234567",
+      "placas": ["ABC123", "XYZ987"],
+      "nota": "Preferir llamada"
+    },
+    {
+      "id": "T2-305",
+      "torre": "2",
+      "apto": "305",
+      "nombre": "Maria Gomez",
+      "telefono": "+573101112233",
+      "placas": ["QWE456"],
+      "nota": ""
+    }
+  ]
+}
