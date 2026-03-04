@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Directorio Residentes</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#111111">
+  <style>
+    body { font-family: system-ui, Arial; margin: 16px; max-width: 720px; }
+    h1 { font-size: 20px; margin: 0 0 10px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap: wrap; }
+    input, button { padding: 12px; font-size: 16px; border-radius: 10px; border:1px solid #ccc; }
+    input { flex: 1; min-width: 240px; }
+    button { cursor:pointer; }
+    button.primary { background:#111; color:#fff; border:none; }
+    .muted { color:#666; font-size: 13px; margin-top:6px; }
+    .card { border:1px solid #e5e5e5; border-radius: 14px; padding: 12px; margin: 10px 0; }
+    .name { font-weight: 700; }
+    .meta { color:#333; margin-top:4px; }
+    .actions { display:flex; gap:10px; margin-top:10px; flex-wrap: wrap; }
+    .pill { display:inline-block; padding: 4px 10px; border-radius: 999px; border:1px solid #ddd; font-size: 13px; }
+    .ok { color: #0a7; font-weight:600; }
+    .bad { color: #c33; font-weight:600; }
+  </style>
+</head>
+<body>
+  <h1>Directorio de Residentes</h1>
+
+  <div class="row">
+    <input id="q" type="search" placeholder="Buscar: nombre, torre, apto o placa" autocomplete="off" />
+    <button class="primary" id="btnSync">Actualizar base</button>
+  </div>
+
+  <div class="muted">
+    Estado: <span id="net"></span> · Última sincronización: <span id="lastSync">—</span> · Versión base: <span id="ver">—</span>
+  </div>
+
+  <div id="results"></div>
+
+<script>
+  const LS_KEY = "directorio_residentes_items_v1";
+  const LS_META = "directorio_residentes_meta_v1";
+
+  const $q = document.getElementById("q");
+  const $results = document.getElementById("results");
+  const $btnSync = document.getElementById("btnSync");
+  const $net = document.getElementById("net");
+  const $lastSync = document.getElementById("lastSync");
+  const $ver = document.getElementById("ver");
+
+  function setNet() {
+    const online = navigator.onLine;
+    $net.textContent = online ? "Online" : "Offline";
+    $net.className = online ? "ok" : "bad";
+  }
+  window.addEventListener("online", setNet);
+  window.addEventListener("offline", setNet);
+  setNet();
+
+  function loadLocal() {
+    const items = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+    const meta = JSON.parse(localStorage.getItem(LS_META) || "{}");
+    $lastSync.textContent = meta.lastSync || "—";
+    $ver.textContent = meta.version || "—";
+    return { items, meta };
+  }
+
+  function saveLocal(items, meta) {
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+    localStorage.setItem(LS_META, JSON.stringify(meta));
+    $lastSync.textContent = meta.lastSync || "—";
+    $ver.textContent = meta.version || "—";
+  }
+
+  function normalize(s) {
+    return (s || "")
+      .toString()
+      .trim()
+      .toUpperCase()
+      .normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  }
+
+  function render(list) {
+    if (!list.length) {
+      $results.innerHTML = "<p class='muted'>Sin resultados.</p>";
+      return;
+    }
+
+    $results.innerHTML = list.slice(0, 30).map(r => {
+      const placas = (r.placas || []).map(p => `<span class="pill">${p}</span>`).join(" ");
+      const tel = (r.telefono || "").trim();
+      const telHref = tel ? `tel:${tel}` : "";
+      const waHref = tel ? `https://wa.me/${tel.replace(/[^0-9]/g,'')}` : "";
+
+      return `
+        <div class="card">
+          <div class="name">${r.nombre || "—"}</div>
+          <div class="meta">Torre ${r.torre || "—"} · Apto ${r.apto || "—"}</div>
+          ${r.nota ? `<div class="muted">${r.nota}</div>` : ""}
+          ${placas ? `<div style="margin-top:8px;">${placas}</div>` : ""}
+          <div class="actions">
+            <button ${telHref ? "" : "disabled"} onclick="${telHref ? `location.href='${telHref}'` : ""}">Llamar</button>
+            <button ${waHref ? "" : "disabled"} onclick="${waHref ? `window.open('${waHref}','_blank')` : ""}">WhatsApp</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function filterItems(items, query) {
+    const q = normalize(query);
+    if (!q) return items;
+
+    return items.filter(r => {
+      const hay = [
+        r.id, r.torre, r.apto, r.nombre, r.telefono,
+        ...(r.placas || []),
+        r.nota
+      ].map(normalize).join(" | ");
+      return hay.includes(q);
+    });
+  }
+
+  async function sync() {
+    $btnSync.disabled = true;
+    $btnSync.textContent = "Actualizando...";
+
+    try {
+      const resp = await fetch("/residentes.json", { cache: "no-store" });
+      if (!resp.ok) throw new Error("No se pudo descargar residentes.json");
+
+      const data = await resp.json();
+      const items = Array.isArray(data.items) ? data.items : [];
+      const meta = {
+        version: data.version || "—",
+        lastSync: new Date().toLocaleString("es-CO")
+      };
+
+      saveLocal(items, meta);
+      const q = $q.value;
+      render(filterItems(items, q));
+      alert("Base actualizada OK.");
+    } catch (e) {
+      // Si falla internet, seguimos con lo local
+      const { items } = loadLocal();
+      render(filterItems(items, $q.value));
+      alert("No se pudo actualizar (sin Internet o error). Usando copia local.");
+    } finally {
+      $btnSync.disabled = false;
+      $btnSync.textContent = "Actualizar base";
+    }
+  }
+
+  // Inicio: cargar local y mostrar
+  const init = loadLocal();
+  render(init.items);
+
+  // Buscar
+  $q.addEventListener("input", () => {
+    const { items } = loadLocal();
+    render(filterItems(items, $q.value));
+  });
+
+  // Botón actualizar
+  $btnSync.addEventListener("click", sync);
+
+  // Auto-sync si está online (al cargar)
+  if (navigator.onLine) sync();
+
+  // Registrar service worker
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+</script>
+</body>
+</html>
