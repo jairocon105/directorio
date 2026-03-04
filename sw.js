@@ -1,12 +1,12 @@
 /* sw.js */
 const CACHE_NAME = "directorio-cache-v1";
 const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/manifest.webmanifest",
-  "/sw.js",
-  "/residentes.json"
-];
+  "./",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./sw.js",
+  "./residentes.json"
+];;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -28,7 +28,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  if (url.pathname === "/residentes.json") {
+  if (url.pathname === "./residentes.json") {
     event.respondWith(
       fetch(event.request)
         .then((resp) => {
