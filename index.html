@@ -28,7 +28,7 @@
   <h1>Directorio de Residentes</h1>
 
   <div class="row">
-    <input id="q" type="search" placeholder="Buscar: nombre, torre, apto o placa" autocomplete="off" />
+    <input id="q" type="search" placeholder="Buscar: nombre, unidad o teléfono" autocomplete="off" />
     <button class="primary" id="btnSync">Actualizar base</button>
   </div>
 
@@ -81,6 +81,15 @@
       .normalize("NFD").replace(/\p{Diacritic}/gu, "");
   }
 
+  // Extrae "número de unidad" desde cualquier formato:
+  // Ej: "T4-4147", "Torre 4 Apto 4147", "Unidad 4147", "4147", "Apto: 4147"
+  function extractUnidadNumero(unidadStr) {
+    const s = (unidadStr || "").toString();
+    // Busca el último bloque de 3 a 6 dígitos (ajusta si tus unidades pueden ser más/menos)
+    const m = s.match(/(\d{3,6})(?!.*\d)/);
+    return m ? m[1] : "";
+  }
+
   function render(list) {
     if (!list.length) {
       $results.innerHTML = "<p class='muted'>Sin resultados.</p>";
@@ -88,17 +97,19 @@
     }
 
     $results.innerHTML = list.slice(0, 30).map(r => {
-      const placas = (r.placas || []).map(p => `<span class="pill">${p}</span>`).join(" ");
-      const tel = (r.telefono || "").trim();
-      const telHref = tel ? `tel:${tel}` : "";
-      const waHref = tel ? `https://wa.me/${tel.replace(/[^0-9]/g,'')}` : "";
+      const tel = (r.telefono || "").toString().trim();
+      const telDigits = tel.replace(/[^0-9+]/g,''); // conserva + si lo hay
+      const telHref = telDigits ? `tel:${telDigits}` : "";
+      const waHref = telDigits ? `https://wa.me/${telDigits.replace(/[^0-9]/g,'')}` : "";
+
+      const unidad = (r.unidad || "").toString();
+      const unidadNum = extractUnidadNumero(unidad);
 
       return `
         <div class="card">
           <div class="name">${r.nombre || "—"}</div>
-          <div class="meta">Torre ${r.torre || "—"} · Apto ${r.apto || "—"}</div>
-          ${r.nota ? `<div class="muted">${r.nota}</div>` : ""}
-          ${placas ? `<div style="margin-top:8px;">${placas}</div>` : ""}
+          <div class="meta">Unidad ${unidad || "—"}${unidadNum ? ` <span class="pill">#${unidadNum}</span>` : ""}</div>
+          <div class="muted">${tel ? `Tel: ${tel}` : "Tel: —"}</div>
           <div class="actions">
             <button ${telHref ? "" : "disabled"} onclick="${telHref ? `location.href='${telHref}'` : ""}">Llamar</button>
             <button ${waHref ? "" : "disabled"} onclick="${waHref ? `window.open('${waHref}','_blank')` : ""}">WhatsApp</button>
@@ -109,14 +120,29 @@
   }
 
   function filterItems(items, query) {
-    const q = normalize(query);
+    const qRaw = (query || "").toString().trim();
+    const q = normalize(qRaw);
     if (!q) return items;
 
+    // Si el usuario escribe solo dígitos (ej: 4147), buscamos por "número de unidad"
+    const qDigitsOnly = qRaw.replace(/\s+/g, "");
+    const isOnlyDigits = /^[0-9]+$/.test(qDigitsOnly);
+    if (isOnlyDigits) {
+      return items.filter(r => {
+        const unidadNum = extractUnidadNumero(r.unidad);
+        return unidadNum === qDigitsOnly;
+      });
+    }
+
+    // Búsqueda normal (incluye también el número extraído de la unidad)
     return items.filter(r => {
+      const unidadNum = extractUnidadNumero(r.unidad);
       const hay = [
-        r.id, r.torre, r.apto, r.nombre, r.telefono,
-        ...(r.placas || []),
-        r.nota
+        r.id,
+        r.unidad,
+        unidadNum,
+        r.nombre,
+        r.telefono
       ].map(normalize).join(" | ");
       return hay.includes(q);
     });
@@ -127,7 +153,10 @@
     $btnSync.textContent = "Actualizando...";
 
     try {
+      // Si ya lo conectaste a n8n, reemplaza esta URL por tu endpoint:
+      // const resp = await fetch("https://TU-N8N/webhook/residentes", { cache: "no-store" });
       const resp = await fetch("./residentes.json", { cache: "no-store" });
+
       if (!resp.ok) throw new Error("No se pudo descargar residentes.json");
 
       const data = await resp.json();
@@ -138,11 +167,9 @@
       };
 
       saveLocal(items, meta);
-      const q = $q.value;
-      render(filterItems(items, q));
+      render(filterItems(items, $q.value));
       alert("Base actualizada OK.");
     } catch (e) {
-      // Si falla internet, seguimos con lo local
       const { items } = loadLocal();
       render(filterItems(items, $q.value));
       alert("No se pudo actualizar (sin Internet o error). Usando copia local.");
