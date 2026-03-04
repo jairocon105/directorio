@@ -1,7 +1,7 @@
 {
   "name": "Directorio Residentes",
   "short_name": "Directorio",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#111111",
