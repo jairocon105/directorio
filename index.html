@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Directorio Residentes</title>
-  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#111111">
   <style>
     body { font-family: system-ui, Arial; margin: 16px; max-width: 720px; }
@@ -127,7 +127,7 @@
     $btnSync.textContent = "Actualizando...";
 
     try {
-      const resp = await fetch("/residentes.json", { cache: "no-store" });
+      const resp = await fetch("./residentes.json", { cache: "no-store" });
       if (!resp.ok) throw new Error("No se pudo descargar residentes.json");
 
       const data = await resp.json();
@@ -170,7 +170,7 @@
 
   // Registrar service worker
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
 </script>
 </body>
