@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Directorio Residentes",
   "short_name": "Directorio",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
