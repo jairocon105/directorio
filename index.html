@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Directorio Residentes</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="/directorio/favicon.ico">
+  <link rel="icon" href="./favicon.ico">
   <meta name="theme-color" content="#111111">
   <style>
     body { font-family: system-ui, Arial; margin: 16px; max-width: 720px; }
@@ -157,7 +157,7 @@
       // Si ya lo conectaste a n8n, reemplaza esta URL por tu endpoint:
       // const resp = await fetch("https://TU-N8N/webhook/residentes", { cache: "no-store" });
       const resp = await fetch("https://betterlifeall.app.n8n.cloud/webhook/residentes", { cache: "no-store" });
-      if (!resp.ok) throw new Error("No se pudo descargar residentes.json");
+      if (!resp.ok) throw new Error("No se pudo descargar la base de residentes");
 
       const data = await resp.json();
       const items = Array.isArray(data.items) ? data.items : [];

@@ -1,0 +1,67 @@
+name: Pages Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: pages-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    environment:
+      name: preview
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build static site artifact
+        run: |
+          mkdir -p dist
+          rsync -av --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            ./ dist/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy preview
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          preview: true
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          PREVIEW_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            const previewUrl = process.env.PREVIEW_URL;
+            const body = `🔎 Preview de la PWA lista:\n\n${previewUrl}\n\nPrueba instalación PWA desde Android en esta URL.`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
