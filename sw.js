@@ -1,12 +1,14 @@
 /* sw.js */
-const CACHE_NAME = "directorio-cache-v1";
+const CACHE_NAME = "directorio-cache-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./sw.js",
-  "./residentes.json"
-];;
+  "./favicon.ico",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png"
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -24,24 +26,8 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Network-first para residentes.json (si hay internet, trae nuevo; si no, usa cache)
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  if (url.pathname === "./residentes.json") {
-    event.respondWith(
-      fetch(event.request)
-        .then((resp) => {
-          const copy = resp.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return resp;
-        })
-        .catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Cache-first para el resto (app shell)
+  // Cache-first para el app shell y estáticos.
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
